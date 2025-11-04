@@ -5,8 +5,6 @@ __pycache__/
 # Ignore Jupyter notebook checkpoints
 .ipynb_checkpoints/
 
-# Ignore CSV output data (you can remove this if you want the data on GitHub)
-us_city_forecasts.csv
 
 # Ignore virtual environments
 venv/
