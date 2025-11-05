@@ -2,6 +2,7 @@ import os
 import requests
 import pandas as pd
 from datetime import datetime
+import time
 
 # Load cities from the CSV file
 def load_cities():
@@ -55,10 +56,14 @@ def pull_weather_data():
     cities = load_cities()
     all_data_list = []
 
-    for city in cities:
+    for i, city in enumerate(cities):
         city_df = get_forecast(city)
         if city_df is not None:
             all_data_list.append(city_df)
+        
+        # Add a small delay every 10 requests to avoid rate limiting
+        if (i + 1) % 10 == 0:
+            time.sleep(1)
     
     if not all_data_list:
         print("No data retrieved. Exiting.")

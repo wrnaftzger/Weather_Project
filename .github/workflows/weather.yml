@@ -8,18 +8,29 @@ on:
 jobs:
   run-script:
     runs-on: ubuntu-latest
-
+    
+    # Important: Give the workflow permission to write to the repository
+    permissions:
+      contents: write
+    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
+      
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-
+      
       - name: Install dependencies
-        run: pip install pandas requests schedule
-
+        run: pip install pandas requests
+      
       - name: Run weather script
         run: python weather_data_collector.py
+      
+      - name: Commit and push changes
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add us_city_forecasts.csv
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update weather data - $(date -u +'%Y-%m-%d %H:%M:%S UTC')" && git push)
