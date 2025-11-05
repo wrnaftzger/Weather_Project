@@ -1,3 +1,4 @@
+import os
 import requests
 import pandas as pd
 from datetime import datetime
@@ -19,6 +20,7 @@ def load_cities():
 
 # Get weather forecast for one city
 def get_forecast(city_info):
+    print(f"Fetching weather for {city_info['city']}...")
     url = "https://api.open-meteo.com/v1/forecast"
     params = {
         "latitude": city_info["lat"],
@@ -27,10 +29,14 @@ def get_forecast(city_info):
         "forecast_days": 1
     }
     
-    response = requests.get(url, params=params)
-    response.raise_for_status()  # ensure any failed request throws an error
-    data = response.json()
+    try:
+        response = requests.get(url, params=params, timeout=10)
+        response.raise_for_status()  # raise error if request fails
+    except requests.RequestException as e:
+        print(f"⚠️ Failed to get data for {city_info['city']}: {e}")
+        return None
     
+    data = response.json()
     df = pd.DataFrame({
         "time": data["hourly"]["time"],
         "temperature_2m": data["hourly"]["temperature_2m"],
@@ -38,6 +44,7 @@ def get_forecast(city_info):
         "wind_speed_10m": data["hourly"]["wind_speed_10m"]
     })
     df["city"] = city_info["city"]
+    df["retrieved_at"] = datetime.now().isoformat()
     
     return df
 
@@ -46,17 +53,28 @@ def pull_weather_data():
     print(f"Pulling weather data at {datetime.now()}")
     
     cities = load_cities()
-    all_data = pd.concat([get_forecast(c) for c in cities], ignore_index=True)
-    all_data["retrieved_at"] = datetime.now().isoformat()
+    all_data_list = []
+
+    for city in cities:
+        city_df = get_forecast(city)
+        if city_df is not None:
+            all_data_list.append(city_df)
     
-    # Save to CSV
-    try:
-        existing = pd.read_csv("us_city_forecasts.csv")
-        all_data = pd.concat([existing, all_data], ignore_index=True)
-    except FileNotFoundError:
-        pass
+    if not all_data_list:
+        print("No data retrieved. Exiting.")
+        return
+
+    all_data = pd.concat(all_data_list, ignore_index=True)
+
+    # Append to CSV instead of rewriting
+    file_exists = os.path.exists("us_city_forecasts.csv")
+    all_data.to_csv(
+        "us_city_forecasts.csv",
+        index=False,
+        mode='a',  # append mode
+        header=not file_exists  # only write header if file doesn't exist
+    )
     
-    all_data.to_csv("us_city_forecasts.csv", index=False)
     print(f"✅ Done! Saved data for {len(cities)} cities at {datetime.now()}")
 
 # Entry point
