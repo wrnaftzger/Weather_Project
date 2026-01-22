@@ -73,7 +73,7 @@ def get_forecast(city_info):
                 
         except requests.RequestException as e:
             attempt += 1
-            wait_time = min(attempt * 5, 60) 
+            wait_time = min(attempt * 5, 60)  #backoff capped at 60s
             print(f"⚠️ Error for {city_info['city']}: {e}")
             print(f"   Retrying in {wait_time}s... (attempt {attempt + 1})")
             time.sleep(wait_time)
@@ -86,19 +86,24 @@ def pull_weather_data():
     all_data_list = []
     
     for i, city in enumerate(cities):
-        city_df = get_forecast(city) 
+        city_df = get_forecast(city)  
         all_data_list.append(city_df)
         
+   
         # Skip delay on the last city
         if i < len(cities) - 1:
-            time.sleep(2)  # 2 seconds
+            time.sleep(2)  # 2 seconds 
     
     print(f"\n📊 Summary: Successfully retrieved data for all {len(cities)} cities")
     
     all_data = pd.concat(all_data_list, ignore_index=True)
     
+    # Create monthly rotating files (YYYY_MM format)
+    folder = "weather_data" 
+    os.makedirs(folder, exist_ok=True)  # Create folder if it doesn't exist
+    
     month_year = datetime.now().strftime("%Y_%m")
-    filename = f"weather_data_{month_year}.csv"
+    filename = os.path.join(folder, f"weather_data_{month_year}.csv")
     
     # Append to monthly CSV
     file_exists = os.path.exists(filename)
@@ -106,7 +111,7 @@ def pull_weather_data():
         filename,
         index=False,
         mode='a',  
-        header=not file_exists  # only write header if file doesn't exist
+        header=not file_exists  
     )
     
     print(f"✅ Done! Saved data to {filename} at {datetime.now()}")
