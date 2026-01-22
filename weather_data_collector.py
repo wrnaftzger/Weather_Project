@@ -83,6 +83,13 @@ def pull_weather_data():
     print(f"Pulling weather data at {datetime.now()}")
     
     cities = load_cities()
+
+
+    # TESTING: Only use first 5 cities
+    cities = cities[:5]  # Remove this line once testing is complete
+    print(f"Testing with {len(cities)} cities only")
+
+    
     all_data_list = []
     
     for i, city in enumerate(cities):
