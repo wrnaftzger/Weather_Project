@@ -67,13 +67,13 @@ def get_forecast(city_info):
             
         except requests.Timeout:
             attempt += 1
-            wait_time = min(attempt * 5, 60)  # Exponential backoff capped at 60s
+            wait_time = min(attempt * 5, 60)  # backoff capped at 60s
             print(f"⏱️ Timeout for {city_info['city']}, retrying in {wait_time}s... (attempt {attempt + 1})")
             time.sleep(wait_time)
                 
         except requests.RequestException as e:
             attempt += 1
-            wait_time = min(attempt * 5, 60)  # Exponential backoff capped at 60s
+            wait_time = min(attempt * 5, 60) 
             print(f"⚠️ Error for {city_info['city']}: {e}")
             print(f"   Retrying in {wait_time}s... (attempt {attempt + 1})")
             time.sleep(wait_time)
@@ -86,28 +86,30 @@ def pull_weather_data():
     all_data_list = []
     
     for i, city in enumerate(cities):
-        city_df = get_forecast(city)  # Will always succeed eventually
+        city_df = get_forecast(city) 
         all_data_list.append(city_df)
         
-        # Add delay between EVERY request to be more respectful to the API
         # Skip delay on the last city
         if i < len(cities) - 1:
-            time.sleep(2)  # 2 seconds between each request
+            time.sleep(2)  # 2 seconds
     
     print(f"\n📊 Summary: Successfully retrieved data for all {len(cities)} cities")
     
     all_data = pd.concat(all_data_list, ignore_index=True)
     
-    # Append to CSV instead of rewriting
-    file_exists = os.path.exists("us_city_forecasts.csv")
+    month_year = datetime.now().strftime("%Y_%m")
+    filename = f"weather_data_{month_year}.csv"
+    
+    # Append to monthly CSV
+    file_exists = os.path.exists(filename)
     all_data.to_csv(
-        "us_city_forecasts.csv",
+        filename,
         index=False,
-        mode='a',  # append mode
+        mode='a',  
         header=not file_exists  # only write header if file doesn't exist
     )
     
-    print(f"✅ Done! Saved data for {len(cities)} cities at {datetime.now()}")
+    print(f"✅ Done! Saved data to {filename} at {datetime.now()}")
 
 # Entry point
 if __name__ == "__main__":

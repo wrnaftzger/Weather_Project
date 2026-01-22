@@ -1,5 +1,4 @@
 name: Run Weather Data Script
-
 on:
   schedule:
     - cron: '0 */6 * * *'   # runs every 6 hours (UTC time)
@@ -32,5 +31,5 @@ jobs:
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add us_city_forecasts.csv
+          git add weather_data_*.csv
           git diff --quiet && git diff --staged --quiet || (git commit -m "Update weather data - $(date -u +'%Y-%m-%d %H:%M:%S UTC')" && git push)
