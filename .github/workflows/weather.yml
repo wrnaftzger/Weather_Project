@@ -31,5 +31,6 @@ jobs:
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add Forcast_Data/
+          git pull --rebase
+          git add Forecast_Data/
           git diff --quiet && git diff --staged --quiet || (git commit -m "Update weather data - $(date -u +'%Y-%m-%d %H:%M:%S UTC')" && git push)
