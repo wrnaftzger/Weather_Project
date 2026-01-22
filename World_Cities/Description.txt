@@ -1,0 +1,5 @@
+Cities_and_countiries.csv - has 187 cities with latitude, longitude, and Koppen Classificcation
+
+Formatted_Koppen_classification.csv and Koeppen-Geiger-ASCII.txt - for coding, long list of coordinates for each Koeppen classification.
+
+worldcities - has 48060 cities (some are not properly recorded because ascii) with latitude and longitude but no Koppen Classification
