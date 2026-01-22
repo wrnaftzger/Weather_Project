@@ -106,11 +106,11 @@ def pull_weather_data():
     all_data = pd.concat(all_data_list, ignore_index=True)
     
     # Create monthly rotating files (YYYY_MM format)
-    folder = "weather_data" 
+    folder = "Forecast_Data" 
     os.makedirs(folder, exist_ok=True)  # Create folder if it doesn't exist
     
     month_year = datetime.now().strftime("%Y_%m")
-    filename = os.path.join(folder, f"weather_data_{month_year}.csv")
+    filename = os.path.join(folder, f"Forecast_Data_{month_year}.csv")
     
     # Append to monthly CSV
     file_exists = os.path.exists(filename)
