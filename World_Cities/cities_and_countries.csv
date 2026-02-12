@@ -15,9 +15,11 @@ antwerp,Belgium,Europe,13,498473,51.2178,4.4003,Cfb
 brussels,Belgium,Europe,29,174383,50.8467,4.3525,Cfb
 la_paz,Bolivia,Americas,3650,789585,-16.4958,-68.1333,Cwc
 sucre,Bolivia,Americas,2806,193876,-19.0475,-65.26,BSk
+brasília ,Brazuk,Americas,"1,000",2800000,-15.78,-47.93,Aw
 curitiba,Brazil,Americas,913,1751907,-25.4297,-49.2719,Cfb
 natal,Brazil,Americas,39,803739,-5.795,-35.2089,As
 rio_de_janeiro,Brazil,Americas,16,6520266,-22.9111,-43.2056,Aw
+São Paulo,Brazil,Americas,760,12500000,-23.5558,-46.6396,Cfa
 sofia,Bulgaria,Europe,557,1210820,42.6979,23.3217,Cfb
 phnom_penh,Cambodia,Asia,16,Unknown,11.5696,104.921,Am
 calgary,Canada,Americas,1082,1265531,51.05,-114.0667,Dfc
@@ -62,8 +64,9 @@ toulon,France,Europe,8,164531,43.1258,5.9306,Csa
 toulouse,France,Europe,150,441801,43.6045,1.444,Cfb
 tbilisi,Georgia,Antarctic,424,1062282,41.7225,44.7925,Cfa
 berlin,Germany,Europe,54,3469849,52.52,13.405,Cfb
+düsseldorf ,Germany,Europe,38,618000,51.223,6.7825,Cfb
 frankfurt,Germany,Europe,105,717624,50.1106,8.6822,Cfb
-hamburg,Germany,Europe,8,1762791,53.55,10.0,Cfb
+hamburg,Germany,Europe,8,1762791,53.55,10,Cfb
 munich,Germany,Europe,524,1429584,48.1375,11.575,Cfb
 stuttgart,Germany,Europe,245,612441,48.7775,9.18,Cfb
 accra,Ghana,Africa,0,Unknown,5.5461,-0.2067,Aw
@@ -79,6 +82,7 @@ jakarta,Indonesia,Asia,3,9607787,-6.175,106.8275,Af
 tehran,Iran,Asia,1184,8154051,35.6889,51.3897,Csa
 baghdad,Iraq,Asia,37,3841268,33.3153,44.3661,BWh
 dublin,Ireland,Europe,17,527612,53.3497,-6.2603,Cfb
+Tel aviv,Israel,Asia,27,429514,32.0853,34.7818,Csa
 bari,Italy,Europe,13,Unknown,41.1253,16.8667,Cfa
 bologna,Italy,Europe,76,385191,44.4939,11.3428,Cfb
 florence,Italy,Europe,52,379122,43.7714,11.2542,Cfb
@@ -101,6 +105,7 @@ valletta,Malta,Europe,56,Unknown,35.8983,14.5125,Csa
 mexico_city,Mexico,Americas,2242,8851080,19.4333,-99.1333,Cwb
 chisinau,Moldova,Europe,86,669693,47.0228,28.8353,Dfb
 casablanca,Morocco,Africa,18,Unknown,33.5333,-7.5833,Csa
+marrakesh,Niricci,Afruca,475,1100000,31.6225,-7.9898,Bsh
 amsterdam,Netherlands,Americas,14,821752,52.3728,4.8936,Cfb
 utrecht,Netherlands,Americas,14,Unknown,52.0908,5.1217,Cfb
 auckland,New Zealand,Oceania,42,1569900,-36.8492,174.7653,Cfb
@@ -124,6 +129,7 @@ arkhangelsk,Russia,Europe,1,350258,64.5431,40.5375,Dfc
 moscow,Russia,Europe,151,12380664,55.7506,37.6175,Dfb
 novosibirsk,Russia,Europe,150,1511369,55.05,82.95,Dfb
 orenburg,Russia,Europe,110,555420,51.7833,55.1,Dfa
+rostov-on-don,Russia,Europe,62,1100091,47.2357,39.7015,Dfa
 simferopol,Russia,Europe,251,331936,44.9519,34.1022,Cfa
 sochi,Russia,Europe,3,364171,43.5853,39.7203,Cfa
 st._petersburg,Russia,Europe,0,Unknown,27.7931,-82.6652,Cfa
@@ -138,13 +144,17 @@ seoul,South Korea,Asia,42,9860372,37.5667,126.9833,Dwa
 barcelona,Spain,Europe,22,1607104,41.3833,2.1833,Cfb
 bilbao,Spain,Europe,21,347965,43.2569,-2.9236,Cfb
 cordoba,Spain,Europe,123,328373,-31.4167,-64.1833,Cwa
+donostia-san_sebastian,Spain,Europe,6,188000,43.3182,-1.9817,Cfb
 girona,Spain,Europe,73,Unknown,41.9844,2.8211,Cfb
+las_palmas_de_gran_canaria,Spain,Europe,8,380000,28.1235,-15.4363,BWh
 madrid,Spain,Europe,661,3186241,40.4169,-3.7033,Csa
 malaga,Spain,Europe,16,567696,36.7194,-4.42,Csa
 marbella,Spain,Europe,25,140349,36.5167,-4.8833,Csa
+palma_de_mallorca,Spain,Europe,5,438000,39.5727,2.6569,Csa
 sabadell,Spain,Europe,198,207547,41.5486,2.1075,Cfb
 salamanca,Spain,Europe,805,148785,20.5703,-101.1972,Cwa
-valencia,Spain,Europe,19,789364,10.1833,-68.0,Aw
+seville,Spain,Europe,18,698423,37.3891,-5.9845,Csa
+valencia,Spain,Europe,19,789364,10.1833,-68,Aw
 colombo,Sri Lanka,Asia,20,647100,6.9167,79.8333,Af
 stockholm,Sweden,Europe,18,789024,59.3275,18.0547,Dfb
 geneva,Switzerland,Europe,411,194565,46.2017,6.1469,Cfb
@@ -155,12 +165,14 @@ bangkok,Thailand,Asia,8,Unknown,13.7525,100.4942,Aw
 istanbul,Turkey,Asia,42,Unknown,41.0136,28.955,Csa
 abu_dhabi,UAE,Asia,0,Unknown,24.4667,54.3667,BWh
 dubai,UAE,Asia,2,Unknown,25.2631,55.2972,BWh
+bangor_(north_wales),Uk,Asia,44,15060,53.2274,-4.1293,Cfb
 birmingham,UK,Asia,149,1085810,52.48,-1.9025,Cfb
 brighton,UK,Asia,12,Unknown,50.8208,-0.1375,Cfb
 edinburgh,UK,Asia,75,482005,55.95,-3.1833,Cfb
 glasgow,UK,Asia,36,1209143,55.8611,-4.25,Cfb
 london,UK,Asia,34,8135667,51.5072,-0.1275,Cfb
 manchester,UK,Asia,55,510746,53.479,-2.2452,Cfb
+kiev,Ukraine,Europe,156,2803716,50.4504,30.5245,Dfb
 montevideo,Uruguay,Americas,0,Unknown,-34.9056,-56.1842,Cfa
 atlanta,USA,Americas,0,Unknown,33.7628,-84.422,Cfa
 boston,USA,Americas,6,667137,42.3188,-71.0852,Dfa
@@ -184,4 +196,5 @@ santa_fe,USA,Americas,2130,Unknown,-31.6333,-60.7,Cfa
 seattle,USA,Americas,10,684451,47.6211,-122.3244,Csb
 washington,USA,Americas,0,Unknown,38.9047,-77.0163,Cfa
 caracas,Venezuela,Americas,887,2082130,10.4806,-66.9036,Aw
-hanoi,Vietnam,Asia,20,Unknown,21.0,105.85,Cwa
+hanoi,Vietnam,Asia,20,Unknown,21,105.85,Cwa
+ho_chi_minh,Vietnam,Asia,12,9300000,10.8231,106.6297,Aw
