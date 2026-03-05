@@ -1,51 +1,31 @@
-import pandas as pd
+import os
 import pyodbc
 from sqlalchemy import create_engine
-import os
-from getpass import getpass
 
 server = "sluweather.database.windows.net"
 database = "Weather"
+username = "CloudSA651686c0"
 driver = "ODBC Driver 18 for SQL Server"
 
-username = ""
-password = ""
+password = os.getenv("AZURE_SQL_PASSWORD")
+if password is None:
+    raise RuntimeError("AZURE_SQL_PASSWORD not set")
 
-conn_str = (
-    f"Driver={{{driver}}};"
-    f"Server=tcp:{server},1433;"
-    f"Database={database};"
-    f"UID={username};"
-    f"PWD={password};"
-    "Encrypt=yes;"
-    "TrustServerCertificate=no;"
-    "Connection Timeout=30;"
-)
+def get_engine():
+    conn_str = (
+        f"Driver={{{driver}}};"
+        f"Server=tcp:{server},1433;"
+        f"Database={database};"
+        f"UID={username};"
+        f"PWD={password};"
+        "Encrypt=yes;"
+        "TrustServerCertificate=no;"
+    )
 
-print("Connecting to Azure SQL Database...")
-print(f"Server: {server}")
-print(f"Database: {database}")
-print(f"Username: {username}")
-
-try:
     conn = pyodbc.connect(conn_str)
-    print("Connected successfully!")
-    
-    engine = create_engine("mssql+pyodbc://", creator=lambda: conn)
+    return create_engine("mssql+pyodbc://", creator=lambda: conn)
 
-    df = pd.read_csv("worldcities.csv")
-    df.to_sql("weather_table", engine, if_exists="replace", index=False)
 
-    print("Uploaded")
-    
-except pyodbc.Error as e:
-    print(f"\n[ERROR] Connection failed: {e}")
-
-    
-except Exception as e:
-    print(f"\n[ERROR] An error occurred: {e}")
-    
-finally:
-    if 'conn' in locals():
-        conn.close()
-        print("\nConnection closed.")
+if __name__ == "__main__":
+    engine = get_engine()
+    print("Connected to Azure SQL Database")

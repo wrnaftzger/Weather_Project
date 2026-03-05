@@ -1,16 +1,15 @@
 name: Run Weather Data Script
 on:
   schedule:
-    - cron: '0 */6 * * *'   # runs every 6 hours (UTC time)
-  workflow_dispatch:         # allows manual trigger from GitHub UI
+    - cron: '0 */6 * * *'   # runs every 6 hours (UTC)
+  workflow_dispatch:         # manual trigger
 
 jobs:
   run-script:
     runs-on: ubuntu-latest
     
-    # Important: Give the workflow permission to write to the repository
     permissions:
-      contents: write
+      contents: write  # allow workflow to commit changes
     
     steps:
       - name: Checkout repository
@@ -22,10 +21,16 @@ jobs:
           python-version: '3.10'
       
       - name: Install dependencies
-        run: pip install pandas requests
+        run: |
+          pip install pandas requests pyodbc sqlalchemy python-dotenv
       
-      - name: Run weather script
+      - name: Run weather scraping script
         run: python weather_data_collector.py
+      
+      - name: Upload newly scraped data to SQL Server
+        env:
+          AZURE_SQL_PASSWORD: ${{ secrets.AZURE_SQL_PASSWORD }}
+        run: python scrapedtodb.py
       
       - name: Commit and push changes
         run: |
