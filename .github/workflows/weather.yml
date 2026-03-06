@@ -1,47 +1,32 @@
 name: Run Weather Data Script
-
 on:
   schedule:
-    - cron: '0 */6 * * *'
-  workflow_dispatch:
+    - cron: '0 */6 * * *'   # runs every 6 hours (UTC time)
+  workflow_dispatch:         # allows manual trigger from GitHub UI
 
 jobs:
   run-script:
     runs-on: ubuntu-latest
-
+    
+    # Important: Give the workflow permission to write to the repository
     permissions:
       contents: write
-
+    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
+      
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-
-      # INSTALL SQL SERVER DRIVER
-      - name: Install ODBC Driver 18 for SQL Server
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y curl apt-transport-https gnupg
-          curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
-          curl https://packages.microsoft.com/config/ubuntu/22.04/prod.list | sudo tee /etc/apt/sources.list.d/mssql-release.list
-          sudo apt-get update
-          sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18 unixodbc-dev
-
-      - name: Install Python dependencies
-        run: pip install pandas requests sqlalchemy pyodbc
-
-      - name: Run weather scraper
+      
+      - name: Install dependencies
+        run: pip install pandas requests
+      
+      - name: Run weather script
         run: python weather_data_collector.py
-
-      - name: Upload new data to SQL
-        run: python scrapedtodb.py
-        env:
-          AZURE_SQL_PASSWORD: ${{ secrets.AZURE_SQL_PASSWORD }}
-
+      
       - name: Commit and push changes
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
