@@ -5,6 +5,7 @@ on:
     workflows: ["Run Weather Data Script"] 
     types:
       - completed
+  workflow_dispatch:
 
 jobs:
   upload-to-db:
