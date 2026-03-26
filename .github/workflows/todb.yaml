@@ -2,7 +2,7 @@ name: Upload Forecast Data to DB
 
 on:
   workflow_run:
-    workflows: ["Run Weather Data Script"] 
+    workflows: ["Run Weather Data Script"]  # Must match the 'name:' in weather.yml exactly
     types:
       - completed
   workflow_dispatch:  # Allows manual trigger from GitHub UI
@@ -10,6 +10,8 @@ on:
 jobs:
   upload-to-db:
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     # Run if triggered manually, or if the weather workflow succeeded
     if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
