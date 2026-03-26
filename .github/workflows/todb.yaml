@@ -1,0 +1,31 @@
+name: Upload Forecast Data to DB
+
+on:
+  workflow_run:
+    workflows: ["Run Weather Data Script"] 
+    types:
+      - completed
+
+jobs:
+  upload-to-db:
+    runs-on: ubuntu-latest
+
+    # Only run if the weather workflow succeeded
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install pandas sqlalchemy pyodbc
+
+      - name: Run DB upload script
+        env:
+          AZURE_SQL_PASSWORD: ${{ secrets.AZURE_SQL_PASSWORD }}
+        run: python scrapedtodb.py
