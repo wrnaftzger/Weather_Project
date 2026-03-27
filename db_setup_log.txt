@@ -1,0 +1,55 @@
+Weather DB Setup  |  sluweather.database.windows.net  |  Weather
+
+  Resuming — 11 file(s) already done: ['Forecast_Data_2026_01.csv', 'Forecast_Data_2026_02.csv', 'Historical_Weather_Data_2026_01.zip', 'Historical_Weather_Data_2026_02_part1.zip', 'Historical_Weather_Data_2026_02_part2.zip', 'forecast_0h.csv', 'forecast_1-6h.csv', 'forecast_13-18h.csv', 'forecast_19-24h.csv', 'forecast_7-12h.csv', 'us_city_forecasts.csv']
+
+  Connection attempt 1 failed (OperationalError), retrying in 10s...
+  Connection attempt 2 failed (OperationalError), retrying in 20s...
+Connected  OK  Microsoft SQL Azure (RTM) - 12.0.2000.8 
+	Feb  7 2026 14:31:25 
+	Copyr...
+
+[schema] Creating tables ...
+  OK All tables ready
+
+
+[cities]
+  45,788 rows already in dbo.cities — running upsert (skipping existing)
+    OK   45,788 rows  ->  cities
+
+[historical_weather]  Historical_Weather_Data_2026_01.zip  SKIP (already done)
+
+[historical_weather]  Historical_Weather_Data_2026_02_part1.zip  SKIP (already done)
+
+[historical_weather]  Historical_Weather_Data_2026_02_part2.zip  SKIP (already done)
+
+[forecasts]  Forecast_Data_2026_01.csv  SKIP (already done)
+
+[forecasts]  Forecast_Data_2026_02.csv  SKIP (already done)
+
+[forecasts]  us_city_forecasts.csv  SKIP (already done)
+
+[forecast_accuracy]  forecast_0h.csv  SKIP (already done)
+
+[forecast_accuracy]  forecast_1-6h.csv  SKIP (already done)
+
+[forecast_accuracy]  forecast_13-18h.csv  SKIP (already done)
+
+[forecast_accuracy]  forecast_19-24h.csv  SKIP (already done)
+
+[forecast_accuracy]  forecast_7-12h.csv  SKIP (already done)
+
+[forecast_accuracy]  summary_by_lead_time.csv  SKIP (summary file)
+
+[city_error_metrics]
+    OK      164 rows  ->  city_error_metrics
+
+── Import Status ──────────────────────────────────────────
+  cities                              45,788 rows
+  city_name_mappings                       0 rows
+  historical_weather               6,597,840 rows
+  forecasts                        1,203,504 rows
+  forecast_accuracy                  492,675 rows
+  city_error_metrics                     164 rows
+───────────────────────────────────────────────────────────
+
+Setup complete.
