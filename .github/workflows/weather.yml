@@ -25,13 +25,13 @@ jobs:
         run: pip install pandas requests sqlalchemy
       
       - name: Run weather script
-        run: python weather_data_collector.py
+        run: python scripts/weather_data_collector.py
       
       - name: Commit and push changes
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add Forecast_Data/
+          git add data/forecasts/
           git diff --quiet && git diff --staged --quiet || git commit -m "Update weather data - $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
           git pull --rebase origin main
           git push

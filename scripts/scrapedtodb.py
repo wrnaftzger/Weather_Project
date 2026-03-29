@@ -12,7 +12,7 @@ driver = "ODBC Driver 18 for SQL Server"
 password = os.environ.get("AZURE_SQL_PASSWORD")  # From GitHub secret
 
 # --- CSV folder path ---
-csv_folder = "Forecast_Data"  # folder containing your forecast CSVs
+csv_folder = "data/forecasts"  # folder containing your forecast CSVs
 
 def get_engine():
     """

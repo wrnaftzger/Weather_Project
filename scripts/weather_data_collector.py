@@ -135,7 +135,7 @@ def merge_into_db(engine, df):
 
 # Load cities from the CSV file
 def load_cities():
-    df = pd.read_csv("cities_and_countries.csv")
+    df = pd.read_csv("data/world_cities/cities_and_countries.csv")
     df = df.dropna(subset=['Latitude', 'Longitude'])
     
     cities = []
