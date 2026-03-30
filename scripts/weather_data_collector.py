@@ -62,19 +62,19 @@ def get_forecast(city_info):
             df["city"] = city_info["city"]
             df["retrieved_at"] = datetime.now().isoformat()
             
-            print(f"✅ Success for {city_info['city']}")
+            print(f"Success for {city_info['city']}")
             return df
             
         except requests.Timeout:
             attempt += 1
             wait_time = min(attempt * 5, 60)  # backoff capped at 60s
-            print(f"⏱️ Timeout for {city_info['city']}, retrying in {wait_time}s... (attempt {attempt + 1})")
+            print(f"Timeout for {city_info['city']}, retrying in {wait_time}s... (attempt {attempt + 1})")
             time.sleep(wait_time)
                 
         except requests.RequestException as e:
             attempt += 1
             wait_time = min(attempt * 5, 60)  #backoff capped at 60s
-            print(f"⚠️ Error for {city_info['city']}: {e}")
+            print(f"Error for {city_info['city']}: {e}")
             print(f"   Retrying in {wait_time}s... (attempt {attempt + 1})")
             time.sleep(wait_time)
 
@@ -95,7 +95,7 @@ def pull_weather_data():
         if i < len(cities) - 1:
             time.sleep(2)  # 2 seconds 
     
-    print(f"\n📊 Summary: Successfully retrieved data for all {len(cities)} cities")
+    print(f"\nSummary: Successfully retrieved data for all {len(cities)} cities")
     
     all_data = pd.concat(all_data_list, ignore_index=True)
     
@@ -115,7 +115,7 @@ def pull_weather_data():
         header=not file_exists  
     )
     
-    print(f"✅ Done! Saved data to {filename} at {datetime.now()}")
+    print(f"Done! Saved data to {filename} at {datetime.now()}")
 
 # Entry point
 if __name__ == "__main__":
