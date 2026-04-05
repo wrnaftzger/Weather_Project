@@ -100,7 +100,7 @@ def pull_weather_data():
     all_data = pd.concat(all_data_list, ignore_index=True)
     
     # Create monthly rotating files (YYYY_MM format)
-    folder = "Forecast_Data" 
+    folder = "data/forecasts" 
     os.makedirs(folder, exist_ok=True)  # Create folder if it doesn't exist
     
     month_year = datetime.now().strftime("%Y_%m")
