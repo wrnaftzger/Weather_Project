@@ -1,5 +1,6 @@
 name: Upload Forecast Data to DB
 
+
 on:
   workflow_run:
     workflows: ["Run Weather Data Script"]  # Must match the 'name:' in weather.yml exactly
@@ -33,8 +34,11 @@ jobs:
           sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18
 
       - name: Install dependencies
-        run: pip install pandas sqlalchemy pyodbc
-
+        run: pip install pandas sqlalchemy 
+        
+      - name: Test SQL connectivity
+        run: nc -zv sluweather.database.windows.net 1433
+        
       - name: Run DB upload script
         env:
           AZURE_SQL_PASSWORD: ${{ secrets.AZURE_SQL_PASSWORD }}
