@@ -34,8 +34,26 @@ jobs:
           sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18
 
       - name: Install dependencies
-        run: pip install pandas sqlalchemy pyodbc 
-        
+        run: pip install pandas sqlalchemy pyodbc
+
+      - name: Get runner public IP
+        id: get_ip
+        run: echo "ip=$(curl -s https://api.ipify.org)" >> $GITHUB_OUTPUT
+
+      - name: Log in to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Add runner IP to Azure SQL firewall
+        run: |
+          az sql server firewall-rule create \
+            --resource-group Capstone \
+            --server sluweather \
+            --name github-actions-runner \
+            --start-ip-address ${{ steps.get_ip.outputs.ip }} \
+            --end-ip-address ${{ steps.get_ip.outputs.ip }}
+
       - name: Test SQL connectivity
         run: nc -zv sluweather.database.windows.net 1433
 
@@ -43,3 +61,12 @@ jobs:
         env:
           AZURE_SQL_PASSWORD: ${{ secrets.AZURE_SQL_PASSWORD }}
         run: python scripts/scrapedtodb.py
+
+      - name: Remove runner IP from Azure SQL firewall
+        if: always()
+        run: |
+          az sql server firewall-rule delete \
+            --resource-group Capstone \
+            --server sluweather \
+            --name github-actions-runner \
+            --yes
