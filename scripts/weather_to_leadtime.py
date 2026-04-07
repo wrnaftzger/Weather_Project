@@ -92,8 +92,17 @@ if __name__ == "__main__":
     input_folder = "data/forecasts"
     output_folder = "data/forecast_by_lead_time"
 
+    print("Input folder:", input_folder)
+    print("Files found:", os.listdir(input_folder))
+    os.makedirs(output_folder, exist_ok=True)
+    print("Output folder created:", os.path.exists(output_folder))
+    print("Existing lead-time CSVs:", os.listdir(output_folder))
+
     # Process all CSVs in input folder
     for file in os.listdir(input_folder):
         if file.endswith(".csv"):
             new_file = os.path.join(input_folder, file)
             append_new_file_to_cleaned_data(new_file, output_folder)
+
+    print("Processing complete.")
+    print("Lead-time CSVs now:", os.listdir(output_folder))
