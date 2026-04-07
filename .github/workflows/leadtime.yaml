@@ -2,15 +2,19 @@ name: Group Lead Time Bins
 
 on:
   workflow_run:
-    workflows: ["Run Weather Data Script"]  # Must exactly match the 'name:' in weather.yaml
+    workflows: ["Run Weather Data Script"]
     types:
       - completed
-  workflow_dispatch:  # Allows manual trigger if needed
+  workflow_dispatch:
 
 jobs:
   process_forecast:
     runs-on: ubuntu-latest
-
+    
+    # Add this permission block
+    permissions:
+      contents: write
+    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -18,7 +22,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.10"  # Or your preferred version
+          python-version: "3.10"
 
       - name: Install dependencies
         run: |
@@ -27,3 +31,13 @@ jobs:
       - name: Run weather_to_leadtime.py
         run: |
           python scripts/weather_to_leadtime.py
+      
+      # Add these steps to commit and push changes
+      - name: Commit and push changes
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add data/forecast_by_lead_time/
+          git diff --quiet && git diff --staged --quiet || git commit -m "Update lead time binned data - $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+          git pull --rebase origin main
+          git push
