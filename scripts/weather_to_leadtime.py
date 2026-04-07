@@ -89,11 +89,13 @@ def append_new_file_to_cleaned_data(new_file, output_folder):
 
 
 if __name__ == "__main__":
-    input_folder = "data/forecasts"
-    output_folder = "data/forecast_by_lead_time"
+    input_folder = os.path.join(os.getcwd(), "data/forecasts")
+    output_folder = os.path.join(os.getcwd(), "data/forecast_by_lead_time")
 
     # Process all CSVs in input folder
     for file in os.listdir(input_folder):
         if file.endswith(".csv"):
             new_file = os.path.join(input_folder, file)
             append_new_file_to_cleaned_data(new_file, output_folder)
+
+            
