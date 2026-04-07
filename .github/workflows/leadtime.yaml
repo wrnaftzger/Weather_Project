@@ -1,0 +1,29 @@
+name: Group Lead Time Bins
+
+on:
+  workflow_run:
+    workflows: ["Run Weather Data Script"]  # Must exactly match the 'name:' in weather.yaml
+    types:
+      - completed
+  workflow_dispatch:  # Allows manual trigger if needed
+
+jobs:
+  process_forecast:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"  # Or your preferred version
+
+      - name: Install dependencies
+        run: |
+          pip install pandas
+
+      - name: Run weather_to_leadtime.py
+        run: |
+          python weather_to_leadtime.py

@@ -4,20 +4,16 @@ import pyodbc
 from sqlalchemy import create_engine, text
 from datetime import datetime
 
-# --- SQL Server connection details ---
 server = "sluweather.database.windows.net"
 database = "Weather"
 username = "CloudSA651686c0"
 driver = "ODBC Driver 18 for SQL Server"
-password = os.environ.get("AZURE_SQL_PASSWORD")  # From GitHub secret
+password = os.environ.get("AZURE_SQL_PASSWORD")
 
-# --- CSV folder path ---
-csv_folder = "data/forecasts"  # folder containing your forecast CSVs
+raw_folder = "data/forecasts"
+binned_folder = "data/forecast_by_lead_time"
 
 def get_engine():
-    """
-    Create a SQLAlchemy engine using pyodbc connection.
-    """
     conn_str = (
         f"Driver={{{driver}}};"
         f"Server=tcp:{server},1433;"
@@ -31,35 +27,23 @@ def get_engine():
     return create_engine("mssql+pyodbc://", creator=lambda: conn, fast_executemany=True)
 
 
-def upload_forecast_csvs():
-    """
-    Upload all CSVs in Forecast_Data to the 'forecasts' table,
-    skipping duplicates based on (city, time, retrieved_at).
-    """
-    engine = get_engine()
-
-    # Fetch existing keys to avoid duplicates
+def upload_raw_forecasts(engine):
     existing = pd.read_sql(
         text("SELECT city, time, retrieved_at FROM forecasts"),
         engine
     )
 
-    # Iterate through CSVs
-    for file in os.listdir(csv_folder):
+    for file in os.listdir(raw_folder):
         if not file.endswith(".csv"):
             continue
 
-        path = os.path.join(csv_folder, file)
+        path = os.path.join(raw_folder, file)
         df = pd.read_csv(path)
 
-        # Convert datetime columns
         df["time"] = pd.to_datetime(df["time"], errors="coerce")
         df["retrieved_at"] = pd.to_datetime(df["retrieved_at"], errors="coerce")
-
-        # Drop rows with missing time
         df = df.dropna(subset=["time"])
 
-        # Remove rows already in the table
         merged = df.merge(
             existing,
             on=["city", "time", "retrieved_at"],
@@ -69,10 +53,9 @@ def upload_forecast_csvs():
         new_rows = merged[merged["_merge"] == "left_only"].drop(columns=["_merge"])
 
         if new_rows.empty:
-            print(f"{file} → no new rows to insert")
+            print(f"{file} → no new raw rows")
             continue
 
-        # Insert new rows
         new_rows.to_sql(
             "forecasts",
             engine,
@@ -81,10 +64,57 @@ def upload_forecast_csvs():
             chunksize=1000
         )
 
-        print(f"{file} → inserted {len(new_rows)} rows")
+        print(f"{file} → inserted {len(new_rows)} raw rows")
+
+
+def upload_binned_forecasts(engine):
+    existing = pd.read_sql(
+        text("SELECT city, forecast_valid_time, lead_time_hours FROM forecast_by_lead_time"),
+        engine
+    )
+
+    for file in os.listdir(binned_folder):
+        if not file.endswith(".csv"):
+            continue
+
+        path = os.path.join(binned_folder, file)
+        df = pd.read_csv(path)
+
+        df["forecast_valid_time"] = pd.to_datetime(df["forecast_valid_time"], errors="coerce")
+        df["forecast_issue_time"] = pd.to_datetime(df["forecast_issue_time"], errors="coerce")
+        df["lead_time_hours"] = df["lead_time_hours"].astype(int)
+
+        df = df.dropna(subset=["forecast_valid_time"])
+
+        merged = df.merge(
+            existing,
+            on=["city", "forecast_valid_time", "lead_time_hours"],
+            how="left",
+            indicator=True
+        )
+        new_rows = merged[merged["_merge"] == "left_only"].drop(columns=["_merge"])
+
+        if new_rows.empty:
+            print(f"{file} → no new binned rows")
+            continue
+
+        new_rows.to_sql(
+            "forecast_by_lead_time",
+            engine,
+            if_exists="append",
+            index=False,
+            chunksize=1000
+        )
+
+        print(f"{file} → inserted {len(new_rows)} binned rows")
 
 
 if __name__ == "__main__":
-    print(f"Starting forecast upload at {datetime.utcnow()} UTC")
-    upload_forecast_csvs()
-    print(f"Finished forecast upload at {datetime.utcnow()} UTC")
+    print(f"Starting upload at {datetime.utcnow()} UTC")
+
+    engine = get_engine()
+
+    upload_raw_forecasts(engine)
+    upload_binned_forecasts(engine)
+
+    print(f"Finished upload at {datetime.utcnow()} UTC")
