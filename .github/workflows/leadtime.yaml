@@ -26,4 +26,4 @@ jobs:
 
       - name: Run weather_to_leadtime.py
         run: |
-          python scripts/weather_to_leadtime.py
+          run: python -u scripts/weather_to_leadtime.py
