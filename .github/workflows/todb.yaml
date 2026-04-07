@@ -3,7 +3,7 @@ name: Upload Forecast Data to DB
 
 on:
   workflow_run:
-    workflows: ["Run Weather Data Script"]  # Must match the 'name:' in weather.yml exactly
+    workflows: ["Group Lead Time Bins"]  # Must match the 'name:' in weather.yml exactly
     types:
       - completed
   workflow_dispatch:  # Allows manual trigger from GitHub UI
