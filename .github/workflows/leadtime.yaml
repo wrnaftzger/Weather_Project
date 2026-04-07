@@ -18,15 +18,12 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.10"
+          python-version: "3.10"  # Or your preferred version
 
       - name: Install dependencies
-        run: pip install pandas
-
-      - name: List forecast input files (debug)
-        run: ls -l data/forecasts
-        working-directory: ${{ github.workspace }}
+        run: |
+          pip install pandas
 
       - name: Run weather_to_leadtime.py
-        working-directory: ${{ github.workspace }}  # ensures repo-root paths
-        run: python scripts/weather_to_leadtime.py
+        run: |
+          python scripts/weather_to_leadtime.py
