@@ -34,12 +34,22 @@ jobs:
           sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18
 
       - name: Install dependencies
-        run: pip install pandas sqlalchemy pyodbc 
-        
-      - name: Test SQL connectivity
-        run: nc -zv sluweather.database.windows.net 1433
+        run: pip install pandas sqlalchemy pyodbc
 
-      - name: Run DB upload script
+      - name: Test SQL connectivity (with retry)
+        run: |
+          for i in 1 2 3 4 5; do
+            nc -zv sluweather.database.windows.net 1433 && break
+            echo "Attempt $i failed, retrying in 15 seconds..."
+            sleep 15
+          done
+
+      - name: Run DB upload script (with retry)
         env:
           AZURE_SQL_PASSWORD: ${{ secrets.AZURE_SQL_PASSWORD }}
-        run: python scripts/scrapedtodb.py
+        run: |
+          for i in 1 2 3 4 5; do
+            python scripts/scrapedtodb.py && break
+            echo "Attempt $i failed, retrying in 15 seconds..."
+            sleep 15
+          done
