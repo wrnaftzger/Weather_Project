@@ -4,10 +4,10 @@ import pandas as pd
 from datetime import datetime, timedelta
 import time
 
-# Get repo root dynamically (where the script runs)
+# Get repo root dynamically
 repo_root = os.getcwd()
 
-# Load cities from the CSV file
+# Load cities from CSV
 def load_cities():
     cities_file = os.path.join(repo_root, "cities_and_countries.csv")
     df = pd.read_csv(cities_file)
@@ -20,10 +20,9 @@ def load_cities():
             'lat': row['Latitude'],
             'lon': row['Longitude']
         })
-    
     return cities
 
-# Get weather forecast for one city with unlimited retry logic
+# Get weather forecast for one city
 def get_forecast(city_info, date_str):
     print(f"Fetching weather for {city_info['city']} for {date_str}...")
     url = "https://archive-api.open-meteo.com/v1/archive"
@@ -36,7 +35,7 @@ def get_forecast(city_info, date_str):
                   "precipitation,rain,showers,snowfall,snow_depth,weather_code,pressure_msl,"
                   "surface_pressure,cloud_cover,wind_speed_10m,wind_gusts_10m"
     }
-    
+
     attempt = 0
     while True:
         try:
@@ -67,7 +66,7 @@ def get_forecast(city_info, date_str):
             
             print(f"[SUCCESS] Data retrieved for {city_info['city']}")
             return df
-            
+        
         except requests.Timeout:
             attempt += 1
             wait_time = min(attempt * 5, 60)
@@ -82,35 +81,40 @@ def get_forecast(city_info, date_str):
 # Main function
 def pull_weather_data():
     print(f"Pulling weather data at {datetime.now()}")
-    
     cities = load_cities()
-    
+
     # Yesterday's date
     yesterday = datetime.now() - timedelta(days=1)
     date_str = yesterday.strftime("%Y-%m-%d")
-    
+
     all_data_list = []
-    
     for i, city in enumerate(cities):
         city_df = get_forecast(city, date_str)
         all_data_list.append(city_df)
         if i < len(cities) - 1:
             time.sleep(2)
-    
+
     all_data = pd.concat(all_data_list, ignore_index=True)
-    
+
     # Save folder inside repo
     folder = os.path.join(repo_root, "data/historical_zips")
     os.makedirs(folder, exist_ok=True)
-    
+
     # File name by month
     month_year = yesterday.strftime("%Y_%m")
     filename = os.path.join(folder, f"Historical_Weather_Data_{month_year}.csv")
-    
-    # Append if exists
+
+    # Prevent duplicates
     file_exists = os.path.exists(filename)
-    all_data.to_csv(filename, index=False, mode='a', header=not file_exists)
-    
+    if file_exists:
+        existing = pd.read_csv(filename)
+        if date_str in existing['time'].values:
+            print(f"Data for {date_str} already exists in {filename}, skipping append.")
+            return
+
+    # Append or create file
+    all_data.to_csv(filename, index=False, mode='a' if file_exists else 'w', header=not file_exists)
+
     print(f"[DONE] Saved data to {filename} at {datetime.now()}")
 
 # Entry point
