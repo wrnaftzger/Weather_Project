@@ -23,7 +23,7 @@ jobs:
 
       - name: Run daily weather update
         run: |
-          python scripts/incremental_historical_weather.py
+          python scripts/historical_weather.py
 
       - name: Upload backup files
         if: always()
