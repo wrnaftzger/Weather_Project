@@ -4,9 +4,13 @@ import pandas as pd
 from datetime import datetime, timedelta
 import time
 
+# Get repo root dynamically (where the script runs)
+repo_root = os.getcwd()
+
 # Load cities from the CSV file
 def load_cities():
-    df = pd.read_csv("../cities_and_countries.csv")
+    cities_file = os.path.join(repo_root, "cities_and_countries.csv")
+    df = pd.read_csv(cities_file)
     df = df.dropna(subset=['Latitude', 'Longitude'])
     
     cities = []
@@ -34,11 +38,10 @@ def get_forecast(city_info, date_str):
     }
     
     attempt = 0
-    while True:  # Retry indefinitely until success
+    while True:
         try:
             response = requests.get(url, params=params, timeout=30)
             response.raise_for_status()
-            
             data = response.json()
             
             df = pd.DataFrame({
@@ -68,14 +71,12 @@ def get_forecast(city_info, date_str):
         except requests.Timeout:
             attempt += 1
             wait_time = min(attempt * 5, 60)
-            print(f"[TIMEOUT] {city_info['city']}, retrying in {wait_time}s... (attempt {attempt + 1})")
+            print(f"[TIMEOUT] {city_info['city']}, retrying in {wait_time}s... (attempt {attempt})")
             time.sleep(wait_time)
-                
         except requests.RequestException as e:
             attempt += 1
             wait_time = min(attempt * 5, 60)
-            print(f"[ERROR] {city_info['city']}: {e}")
-            print(f"        Retrying in {wait_time}s... (attempt {attempt + 1})")
+            print(f"[ERROR] {city_info['city']}: {e}, retrying in {wait_time}s... (attempt {attempt})")
             time.sleep(wait_time)
 
 # Main function
@@ -84,7 +85,7 @@ def pull_weather_data():
     
     cities = load_cities()
     
-    # Compute yesterday's date
+    # Yesterday's date
     yesterday = datetime.now() - timedelta(days=1)
     date_str = yesterday.strftime("%Y-%m-%d")
     
@@ -93,27 +94,22 @@ def pull_weather_data():
     for i, city in enumerate(cities):
         city_df = get_forecast(city, date_str)
         all_data_list.append(city_df)
-        
         if i < len(cities) - 1:
             time.sleep(2)
     
-    print(f"\n[SUMMARY] Successfully retrieved data for all {len(cities)} cities")
-    
     all_data = pd.concat(all_data_list, ignore_index=True)
     
-    folder = "Forecast_Data"
+    # Save folder inside repo
+    folder = os.path.join(repo_root, "data/historical_zips")
     os.makedirs(folder, exist_ok=True)
     
-    month_year = datetime.now().strftime("%Y_%m")
+    # File name by month
+    month_year = yesterday.strftime("%Y_%m")
     filename = os.path.join(folder, f"Historical_Weather_Data_{month_year}.csv")
     
+    # Append if exists
     file_exists = os.path.exists(filename)
-    all_data.to_csv(
-        filename,
-        index=False,
-        mode='a',
-        header=not file_exists
-    )
+    all_data.to_csv(filename, index=False, mode='a', header=not file_exists)
     
     print(f"[DONE] Saved data to {filename} at {datetime.now()}")
 
