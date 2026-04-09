@@ -26,8 +26,8 @@ def get_forecast(city_info):
     params = {
         "latitude": city_info["lat"],
         "longitude": city_info["lon"],
-        "start_date": "2026-01-01",
-        "end_date": "2026-04-07",
+        "start_date": "2026-04-08",
+        "end_date": "2026-04-08",
         "hourly": "temperature_2m,relative_humidity_2m,dew_point_2m,apparent_temperature,precipitation,rain,showers,snowfall,snow_depth,weather_code,pressure_msl,surface_pressure,cloud_cover,wind_speed_10m,wind_gusts_10m"
     }
     
