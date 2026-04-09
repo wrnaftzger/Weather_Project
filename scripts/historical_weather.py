@@ -108,9 +108,12 @@ def pull_weather_data():
     file_exists = os.path.exists(filename)
     if file_exists:
         existing = pd.read_csv(filename)
-        if date_str in existing['time'].values:
-            print(f"Data for {date_str} already exists in {filename}, skipping append.")
-            return
+        existing['time'] = pd.to_datetime(existing['time'])
+    
+    # Check if any timestamps match yesterday's date
+    if any(existing['time'].dt.date == yesterday.date()):
+        print(f"Data for {date_str} already exists in {filename}, skipping append.")
+        return
 
     # Append or create file
     all_data.to_csv(filename, index=False, mode='a' if file_exists else 'w', header=not file_exists)
