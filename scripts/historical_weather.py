@@ -1,7 +1,7 @@
 import os
 import requests
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
 import time
 
 # Load cities from the CSV file
@@ -20,15 +20,17 @@ def load_cities():
     return cities
 
 # Get weather forecast for one city with unlimited retry logic
-def get_forecast(city_info):
-    print(f"Fetching weather for {city_info['city']}...")
+def get_forecast(city_info, date_str):
+    print(f"Fetching weather for {city_info['city']} for {date_str}...")
     url = "https://archive-api.open-meteo.com/v1/archive"
     params = {
         "latitude": city_info["lat"],
         "longitude": city_info["lon"],
-        "start_date": "2026-04-08",
-        "end_date": "2026-04-08",
-        "hourly": "temperature_2m,relative_humidity_2m,dew_point_2m,apparent_temperature,precipitation,rain,showers,snowfall,snow_depth,weather_code,pressure_msl,surface_pressure,cloud_cover,wind_speed_10m,wind_gusts_10m"
+        "start_date": date_str,
+        "end_date": date_str,
+        "hourly": "temperature_2m,relative_humidity_2m,dew_point_2m,apparent_temperature,"
+                  "precipitation,rain,showers,snowfall,snow_depth,weather_code,pressure_msl,"
+                  "surface_pressure,cloud_cover,wind_speed_10m,wind_gusts_10m"
     }
     
     attempt = 0
@@ -39,7 +41,6 @@ def get_forecast(city_info):
             
             data = response.json()
             
-            # Create dataframe with all available historical variables
             df = pd.DataFrame({
                 "time": data["hourly"]["time"],
                 "temperature_2m": data["hourly"]["temperature_2m"],
@@ -66,13 +67,13 @@ def get_forecast(city_info):
             
         except requests.Timeout:
             attempt += 1
-            wait_time = min(attempt * 5, 60)  # backoff capped at 60s
+            wait_time = min(attempt * 5, 60)
             print(f"[TIMEOUT] {city_info['city']}, retrying in {wait_time}s... (attempt {attempt + 1})")
             time.sleep(wait_time)
                 
         except requests.RequestException as e:
             attempt += 1
-            wait_time = min(attempt * 5, 60)  #backoff capped at 60s
+            wait_time = min(attempt * 5, 60)
             print(f"[ERROR] {city_info['city']}: {e}")
             print(f"        Retrying in {wait_time}s... (attempt {attempt + 1})")
             time.sleep(wait_time)
@@ -82,36 +83,36 @@ def pull_weather_data():
     print(f"Pulling weather data at {datetime.now()}")
     
     cities = load_cities()
-
+    
+    # Compute yesterday's date
+    yesterday = datetime.now() - timedelta(days=1)
+    date_str = yesterday.strftime("%Y-%m-%d")
+    
     all_data_list = []
     
     for i, city in enumerate(cities):
-        city_df = get_forecast(city)  
+        city_df = get_forecast(city, date_str)
         all_data_list.append(city_df)
         
-   
-        # Skip delay on the last city
         if i < len(cities) - 1:
-            time.sleep(2)  # 2 seconds 
+            time.sleep(2)
     
     print(f"\n[SUMMARY] Successfully retrieved data for all {len(cities)} cities")
     
     all_data = pd.concat(all_data_list, ignore_index=True)
     
-    # Create monthly rotating files (YYYY_MM format)
-    folder = "Forecast_Data" 
-    os.makedirs(folder, exist_ok=True)  # Create folder if it doesn't exist
+    folder = "Forecast_Data"
+    os.makedirs(folder, exist_ok=True)
     
     month_year = datetime.now().strftime("%Y_%m")
     filename = os.path.join(folder, f"Historical_Weather_Data_{month_year}.csv")
     
-    # Append to monthly CSV
     file_exists = os.path.exists(filename)
     all_data.to_csv(
         filename,
         index=False,
-        mode='a',  
-        header=not file_exists  
+        mode='a',
+        header=not file_exists
     )
     
     print(f"[DONE] Saved data to {filename} at {datetime.now()}")
