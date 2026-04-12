@@ -114,19 +114,30 @@ def upload_historical_update(engine):
         if not file.endswith(".csv"):
             continue
 
-        # Read existing data INSIDE the loop for each file
-        existing = pd.read_sql(
-            text("SELECT city, time FROM historical_weather"),
-            engine
-        )
-
         path = os.path.join(historical_folder, file)
         df = pd.read_csv(path)
 
+        # Parse datetime columns
         df["time"] = pd.to_datetime(df["time"], errors="coerce")
         df["retrieved_at"] = pd.to_datetime(df["retrieved_at"], errors="coerce")
-
         df = df.dropna(subset=["time"])
+        
+        # Remove duplicates within the CSV
+        df = df.drop_duplicates(subset=["city", "time"], keep="first")
+        
+        # Normalize city names to lowercase for comparison
+        df["city"] = df["city"].str.lower().str.strip()
+
+        # Read existing data with proper datetime parsing
+        existing = pd.read_sql(
+            text("SELECT LOWER(city) as city, CAST(time as datetime2) as time FROM historical_weather"),
+            engine
+        )
+        
+        # Ensure datetime format matches
+        existing["time"] = pd.to_datetime(existing["time"])
+        df["time"] = pd.to_datetime(df["time"]).dt.floor('S')  # Remove microseconds
+        existing["time"] = existing["time"].dt.floor('S')  # Remove microseconds
 
         merged = df.merge(
             existing,
@@ -151,7 +162,7 @@ def upload_historical_update(engine):
             print(f"{file} → inserted {len(new_rows)} historical rows")
         except Exception as e:
             print(f"{file} → ERROR: {e}")
-            continue  # Continue with next file instead of crashing
+            continue
 
 
 if __name__ == "__main__":
