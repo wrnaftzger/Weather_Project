@@ -110,14 +110,15 @@ def upload_binned_forecasts(engine):
         print(f"{file} → inserted {len(new_rows)} binned rows")
 
 def upload_historical_update(engine):
-    existing = pd.read_sql(
-        text("SELECT city, time FROM historical_weather"),
-        engine
-    )
-
     for file in os.listdir(historical_folder):
         if not file.endswith(".csv"):
             continue
+
+        # Read existing data INSIDE the loop for each file
+        existing = pd.read_sql(
+            text("SELECT city, time FROM historical_weather"),
+            engine
+        )
 
         path = os.path.join(historical_folder, file)
         df = pd.read_csv(path)
@@ -139,15 +140,18 @@ def upload_historical_update(engine):
             print(f"{file} → no new historical rows")
             continue
 
-        new_rows.to_sql(
-            "historical_weather",
-            engine,
-            if_exists="append",
-            index=False,
-            chunksize=1000
-        )
-
-        print(f"{file} → inserted {len(new_rows)} historical rows")
+        try:
+            new_rows.to_sql(
+                "historical_weather",
+                engine,
+                if_exists="append",
+                index=False,
+                chunksize=1000
+            )
+            print(f"{file} → inserted {len(new_rows)} historical rows")
+        except Exception as e:
+            print(f"{file} → ERROR: {e}")
+            continue  # Continue with next file instead of crashing
 
 
 if __name__ == "__main__":
