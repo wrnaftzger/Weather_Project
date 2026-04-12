@@ -12,6 +12,7 @@ password = os.environ.get("AZURE_SQL_PASSWORD")
 
 raw_folder = "data/forecasts"
 binned_folder = "data/forecast_by_lead_time"
+historical_folder = "data/historical_zips"
 
 def get_engine():
     conn_str = (
@@ -108,6 +109,46 @@ def upload_binned_forecasts(engine):
 
         print(f"{file} → inserted {len(new_rows)} binned rows")
 
+def upload_historical_update(engine):
+    existing = pd.read_sql(
+        text("SELECT city, time FROM historical_weather"),
+        engine
+    )
+
+    for file in os.listdir(historical_folder):
+        if not file.endswith(".csv"):
+            continue
+
+        path = os.path.join(historical_folder, file)
+        df = pd.read_csv(path)
+
+        df["time"] = pd.to_datetime(df["time"], errors="coerce")
+        df["retrieved_at"] = pd.to_datetime(df["retrieved_at"], errors="coerce")
+
+        df = df.dropna(subset=["time"])
+
+        merged = df.merge(
+            existing,
+            on=["city", "time"],
+            how="left",
+            indicator=True
+        )
+        new_rows = merged[merged["_merge"] == "left_only"].drop(columns=["_merge"])
+
+        if new_rows.empty:
+            print(f"{file} → no new historical rows")
+            continue
+
+        new_rows.to_sql(
+            "historical_weather",
+            engine,
+            if_exists="append",
+            index=False,
+            chunksize=1000
+        )
+
+        print(f"{file} → inserted {len(new_rows)} historical rows")
+
 
 if __name__ == "__main__":
     print(f"Starting upload at {datetime.utcnow()} UTC")
@@ -116,5 +157,6 @@ if __name__ == "__main__":
 
     upload_raw_forecasts(engine)
     upload_binned_forecasts(engine)
+    upload_historical_update(engine)
 
     print(f"Finished upload at {datetime.utcnow()} UTC")
