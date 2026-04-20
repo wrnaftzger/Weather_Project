@@ -1,0 +1,10 @@
+.git/
+.github/
+__pycache__/
+.env
+data/
+database/
+scripts/
+tools/
+visualization/outputs/
+cities_and_countries.csv
