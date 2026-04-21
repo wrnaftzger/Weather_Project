@@ -8,6 +8,8 @@ import pandas as pd
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.engine import URL
+from sqlalchemy.exc import DBAPIError as SQLAlchemyDBAPIError
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.exc import ProgrammingError as SQLAlchemyProgrammingError
 
 load_dotenv()
@@ -17,6 +19,21 @@ SERVER = os.getenv("AZURE_SQL_SERVER", "sluweather.database.windows.net")
 DATABASE = os.getenv("AZURE_SQL_DATABASE", "Weather")
 ODBC_DRIVER = os.getenv("AZURE_SQL_ODBC_DRIVER", "ODBC Driver 18 for SQL Server")
 SQL_DIALECT = os.getenv("AZURE_SQL_DIALECT", "auto").strip().lower()
+
+
+def _is_missing_forecast_accuracy_error(exc: Exception) -> bool:
+    message = str(exc)
+    msg_lower = message.lower()
+    return (
+        "forecast_accuracy" in msg_lower
+        and (
+            "invalid object name" in msg_lower
+            or "object name" in msg_lower
+            or "programmingerror" in msg_lower
+            or "(208" in msg_lower
+            or "208," in msg_lower
+        )
+    )
 
 
 def _resolve_sqlalchemy_dialect() -> str:
@@ -113,9 +130,13 @@ def fetch_historical_error_training_data(lookback_days: int, sample_limit: int) 
     with get_engine().connect() as conn:
         try:
             df = pd.read_sql(query_forecast_accuracy, conn)
-        except SQLAlchemyProgrammingError as exc:
-            message = str(exc)
-            if "Invalid object name" not in message or "forecast_accuracy" not in message:
+        except (
+            SQLAlchemyProgrammingError,
+            SQLAlchemyDBAPIError,
+            SQLAlchemyError,
+            pd.errors.DatabaseError,
+        ) as exc:
+            if not _is_missing_forecast_accuracy_error(exc):
                 raise
             print(
                 "[WARN] Table 'forecast_accuracy' not found. "

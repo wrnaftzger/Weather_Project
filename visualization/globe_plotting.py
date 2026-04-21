@@ -184,7 +184,29 @@ def create_globe_figure(
     plot_df = plot_df.dropna(subset=["lat", "lng", value_col]).reset_index(drop=True)
 
     if plot_df.empty:
-        raise RuntimeError(f"No rows available to render {config['label']} globe.")
+        fig = go.Figure()
+        fig.update_layout(
+            title=f"Global {config['label']} Globe (data unavailable)",
+            margin=dict(l=0, r=0, t=50, b=0),
+            paper_bgcolor="#020617",
+            plot_bgcolor="#020617",
+            font=dict(color="#e2e8f0"),
+            showlegend=False,
+            xaxis=dict(visible=False),
+            yaxis=dict(visible=False),
+            annotations=[
+                dict(
+                    text="Weather data is temporarily unavailable. Please try refresh shortly.",
+                    x=0.5,
+                    y=0.5,
+                    xref="paper",
+                    yref="paper",
+                    showarrow=False,
+                    font=dict(size=16, color="#e2e8f0"),
+                )
+            ],
+        )
+        return fig
 
     lat_mesh, lon_mesh, surface_values = create_regression_kriging_surface(
         station_df=plot_df,
