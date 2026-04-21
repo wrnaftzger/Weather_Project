@@ -1,0 +1,14 @@
+dash
+matplotlib
+numpy
+pandas
+plotly
+pyodbc; platform_system == "Windows"
+pymssql; platform_system != "Windows"
+python-dateutil
+python-dotenv
+requests
+seaborn
+SQLAlchemy
+watchdog
+xgboost
