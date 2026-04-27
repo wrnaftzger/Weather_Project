@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import json
+import os
+
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
@@ -88,6 +91,25 @@ VARIABLE_SWITCH_OPTIONS = [
     {"label": "Precipitation", "value": "precipitation"},
 ]
 
+_COUNTRY_BORDERS_DATA = None
+
+
+def _get_country_borders_data():
+    global _COUNTRY_BORDERS_DATA
+    if _COUNTRY_BORDERS_DATA is not None:
+        return _COUNTRY_BORDERS_DATA
+
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    geojson_path = os.path.join(base_dir, "assets", "country_borders.geojson")
+
+    if os.path.exists(geojson_path):
+        with open(geojson_path, encoding="utf-8") as f:
+            _COUNTRY_BORDERS_DATA = json.load(f)
+    else:
+        _COUNTRY_BORDERS_DATA = {"features": []}
+
+    return _COUNTRY_BORDERS_DATA
+
 
 def lat_lon_to_xyz(lat_deg, lon_deg, radius=1.0):
     lat = np.radians(lat_deg)
@@ -96,6 +118,51 @@ def lat_lon_to_xyz(lat_deg, lon_deg, radius=1.0):
     y = radius * np.cos(lat) * np.sin(lon)
     z = radius * np.sin(lat)
     return x, y, z
+
+
+def _add_country_borders(fig, border_radius=1.005):
+    geojson = _get_country_borders_data()
+
+    if not geojson.get("features"):
+        return fig
+
+    for feature in geojson["features"]:
+        geometry = feature.get("geometry")
+        if not geometry:
+            continue
+
+        if geometry.get("type") == "Polygon":
+            coords = [geometry["coordinates"]]
+        elif geometry.get("type") == "MultiPolygon":
+            coords = geometry["coordinates"]
+        else:
+            continue
+
+        for polygon in coords:
+            for ring in polygon:
+                lats = [c[1] for c in ring]
+                lons = [c[0] for c in ring]
+
+                if len(lats) < 3:
+                    continue
+
+                x, y, z = lat_lon_to_xyz(
+                    np.array(lats), np.array(lons), radius=border_radius
+                )
+
+                fig.add_trace(
+                    go.Scatter3d(
+                        x=x,
+                        y=y,
+                        z=z,
+                        mode="lines",
+                        line=dict(color="rgba(100, 116, 139, 0.6)", width=1.2),
+                        hoverinfo="skip",
+                        showlegend=False,
+                    )
+                )
+
+    return fig
 
 
 def _unit_suffix(unit: str) -> str:
@@ -169,6 +236,7 @@ def create_globe_figure(
     variable_key=DEFAULT_VARIABLE,
     neighbors=DEFAULT_NEIGHBORS,
     resolution=DEFAULT_RESOLUTION,
+    show_countries=True,
 ):
     key = variable_key if variable_key in VARIABLE_CONFIG else DEFAULT_VARIABLE
     config = VARIABLE_CONFIG[key]
@@ -229,6 +297,15 @@ def create_globe_figure(
     fmt = config["fmt"]
 
     fig = go.Figure()
+
+    hoverlabel_style = dict(
+        font_size=16,
+        font_family="Inter, sans-serif",
+        bgcolor="rgba(15, 23, 42, 0.95)",
+        bordercolor="#38bdf8",
+        font_color="#f1f5f9",
+    )
+
     fig.add_trace(
         go.Surface(
             x=x_sphere,
@@ -248,6 +325,11 @@ def create_globe_figure(
                 "Lat: %{customdata[0]:.1f} deg<br>"
                 "Lon: %{customdata[1]:.1f} deg<br>"
                 f"Kriged {config['label'].lower()}: %{{surfacecolor:{fmt}}}{unit}<extra></extra>"
+            ),
+            hoverlabel=dict(
+                font_size=14,
+                font_color="#f1f5f9",
+                bgcolor="rgba(15, 23, 42, 0.95)",
             ),
             showscale=True,
             opacity=1.0,
@@ -295,9 +377,13 @@ def create_globe_figure(
                 "Country: %{customdata[0]}<br>"
                 f"{config['label']}: %{{customdata[1]:{fmt}}}{unit}<extra></extra>"
             ),
+            hoverlabel=hoverlabel_style,
             name="Cities",
         )
     )
+
+    if show_countries:
+        fig = _add_country_borders(fig, border_radius=1.005)
 
     latest_valid_time = pd.to_datetime(plot_df["valid_time"].max(), errors="coerce")
     if pd.isna(latest_valid_time):

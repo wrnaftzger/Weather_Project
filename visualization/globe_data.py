@@ -200,3 +200,58 @@ def fetch_latest_station_forecasts() -> pd.DataFrame:
     if df.empty:
         raise RuntimeError("No forecast station data returned from database.")
     return df
+
+
+def fetch_linear_model_predictions(lead_days: int) -> pd.DataFrame:
+    """Fetch predictions from the R linear model for the specified lead_days.
+
+    Reads from the database table linear_model_predictions.
+    """
+    query = f"""
+    SELECT
+        city,
+        country,
+        lat,
+        lng,
+        predicted_temp,
+        pred_temp_full,
+        pred_temp_adj,
+        valid_date,
+        lead_days,
+        created_at
+    FROM dbo.linear_model_predictions
+    WHERE lead_days = {int(lead_days)}
+    ORDER BY city;
+    """
+
+    try:
+        with get_engine().connect() as conn:
+            df = pd.read_sql(query, conn)
+    except (
+        SQLAlchemyProgrammingError,
+        SQLAlchemyDBAPIError,
+        SQLAlchemyError,
+        pd.errors.DatabaseError,
+    ) as exc:
+        raise FileNotFoundError(
+            f"linear_model_predictions table not found or query failed: {exc}"
+        )
+
+    if df.empty:
+        raise FileNotFoundError(
+            f"No predictions found for lead_days={lead_days}. "
+            "Run predict_weather.R to generate predictions."
+        )
+
+    # Rename columns to match what globe_plotting expects
+    df = df.rename(columns={
+        "predicted_temp": "corrected_temp",
+        "pred_temp_full": "forecast_temp",
+        "pred_temp_adj": "predicted_error",
+    })
+
+    # Add required columns that globe_plotting expects
+    df["valid_time"] = pd.to_datetime(df.get("valid_date", ""), errors="coerce")
+    df["issue_time"] = pd.to_datetime(df.get("created_at", ""), errors="coerce")
+
+    return df
