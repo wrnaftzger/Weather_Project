@@ -10,7 +10,10 @@ from visualization.globe_model import (
     load_corrected_station_snapshot,
     train_error_model_bundle,
 )
-from visualization.globe_data import fetch_linear_model_predictions
+from visualization.globe_data import (
+    fetch_linear_model_predictions,
+    fetch_daily_rmse_by_variable,
+)
 from visualization.globe_plotting import (
     DEFAULT_VARIABLE,
     VARIABLE_CONFIG,
@@ -19,16 +22,30 @@ from visualization.globe_plotting import (
 )
 
 
+RMSE_VARIABLE_MAP = {
+    "corrected_temp": "temperature_2m",
+    "wind_speed_10m": "wind_speed_10m",
+    "wind_gusts_10m": "wind_gusts_10m",
+    "relative_humidity_2m": "relative_humidity_2m",
+    "precipitation": "precipitation",
+}
+
+
 def serialize_city_df(df):
     data = df.copy()
-    for col in ("issue_time", "valid_time"):
+
+    for col in ("issue_time", "valid_time", "date"):
         if col in data.columns:
-            data[col] = pd.to_datetime(data[col]).dt.strftime("%Y-%m-%d %H:%M:%S")
+            data[col] = pd.to_datetime(data[col], errors="coerce").dt.strftime(
+                "%Y-%m-%d %H:%M:%S"
+            )
+
     return data.to_dict("records")
 
 
 def build_app():
     city_df, model_bundle = load_corrected_station_snapshot()
+
     app = Dash(__name__)
     app.title = "Weather Globe"
 
@@ -52,6 +69,7 @@ def build_app():
                         ],
                         className="globe-header",
                     ),
+
                     html.Div(
                         [
                             html.Div("Variable", className="control-label"),
@@ -72,6 +90,7 @@ def build_app():
                         ],
                         className="globe-controls",
                     ),
+
                     html.Div(
                         [
                             html.Div(
@@ -82,13 +101,24 @@ def build_app():
                                         value="standard",
                                         className="control-radio",
                                         options=[
-                                            {"label": "Current Weather", "value": "standard"},
-                                            {"label": "R Linear Model", "value": "linear"},
+                                            {
+                                                "label": "Current Weather",
+                                                "value": "standard",
+                                            },
+                                            {
+                                                "label": "R Linear Model",
+                                                "value": "linear",
+                                            },
+                                            {
+                                                "label": "Daily RMSE",
+                                                "value": "rmse",
+                                            },
                                         ],
                                     ),
                                 ],
                                 className="control-group",
                             ),
+
                             html.Div(
                                 id="linear-controls",
                                 style={"display": "none"},
@@ -115,9 +145,15 @@ def build_app():
                         ],
                         className="controls-row",
                     ),
+
                     html.Div(
                         [
-                            html.Button("Refresh data", id="refresh-btn", n_clicks=0, className="refresh-btn"),
+                            html.Button(
+                                "Refresh data",
+                                id="refresh-btn",
+                                n_clicks=0,
+                                className="refresh-btn",
+                            ),
                             html.Div(
                                 id="refresh-status",
                                 className="refresh-status",
@@ -128,6 +164,7 @@ def build_app():
                 ],
                 className="toolbar-panel",
             ),
+
             html.Div(
                 [
                     html.Div(
@@ -150,8 +187,10 @@ def build_app():
                 ],
                 className="main-content",
             ),
+
             dcc.Store(id="city-data", data=serialize_city_df(city_df)),
             dcc.Store(id="linear-data", data=None),
+            dcc.Store(id="rmse-data", data=None),
         ],
         className="app-shell",
     )
@@ -165,10 +204,13 @@ def build_app():
     )
     def refresh_city_data(_):
         train_error_model_bundle.cache_clear()
+
         latest_df, latest_model_bundle = load_corrected_station_snapshot()
         timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+
         refresh_text = f"Last refreshed: {timestamp}"
         model_text = build_model_status_text(latest_model_bundle, len(latest_df))
+
         return serialize_city_df(latest_df), refresh_text, model_text
 
     @callback(
@@ -209,29 +251,70 @@ def build_app():
             return None, f"No predictions found: {str(e)}. Run predict_weather.R first."
 
     @callback(
+        Output("rmse-data", "data"),
+        Input("data-source", "value"),
+    )
+    def load_rmse_data(data_source):
+        if data_source != "rmse":
+            return None
+
+        df = fetch_daily_rmse_by_variable()
+        df["date"] = pd.to_datetime(df["date"], errors="coerce").dt.strftime(
+            "%Y-%m-%d"
+        )
+
+        return df.to_dict("records")
+
+    @callback(
         Output("city-list", "children"),
         Input("city-data", "data"),
+        Input("rmse-data", "data"),
         Input("city-search", "value"),
         Input("variable-tabs", "value"),
+        Input("data-source", "value"),
     )
-    def update_city_list(city_data, search_term, variable_key):
-        df = pd.DataFrame(city_data)
-        config = VARIABLE_CONFIG.get(variable_key, VARIABLE_CONFIG[DEFAULT_VARIABLE])
-        value_col = config["column"]
+    def update_city_list(
+        city_data,
+        rmse_data,
+        search_term,
+        variable_key,
+        data_source,
+    ):
+        if data_source == "rmse" and rmse_data:
+            df = pd.DataFrame(rmse_data)
+
+            df["date"] = pd.to_datetime(df["date"], errors="coerce")
+            df["rmse"] = pd.to_numeric(df["rmse"], errors="coerce")
+
+            rmse_variable = RMSE_VARIABLE_MAP.get(variable_key, variable_key)
+            df = df[df["variable"] == rmse_variable]
+
+            latest_date = df["date"].max()
+            df = df[df["date"] == latest_date]
+
+            config = VARIABLE_CONFIG["rmse"]
+            value_col = "rmse"
+
+        else:
+            df = pd.DataFrame(city_data)
+            config = VARIABLE_CONFIG.get(variable_key, VARIABLE_CONFIG[DEFAULT_VARIABLE])
+            value_col = config["column"]
+
         fmt = config["fmt"]
         unit = config["unit"]
 
         if search_term:
             search_pattern = search_term.lower()
             df = df[
-                df["city"].fillna("").str.lower().str.contains(search_pattern) |
-                df["country"].fillna("").str.lower().str.contains(search_pattern)
+                df["city"].fillna("").str.lower().str.contains(search_pattern)
+                | df["country"].fillna("").str.lower().str.contains(search_pattern)
             ]
 
         max_display = 50
         display_df = df.head(max_display)
 
         items = []
+
         for _, row in display_df.iterrows():
             city = row.get("city", "Unknown")
             country = row.get("country", "")
@@ -258,7 +341,10 @@ def build_app():
 
         if len(df) > max_display:
             items.append(
-                html.Div(f"... and {len(df) - max_display} more", className="city-list-more")
+                html.Div(
+                    f"... and {len(df) - max_display} more",
+                    className="city-list-more",
+                )
             )
 
         return items
@@ -267,14 +353,44 @@ def build_app():
         Output("globe-graph", "figure"),
         Input("city-data", "data"),
         Input("linear-data", "data"),
+        Input("rmse-data", "data"),
         Input("variable-tabs", "value"),
         Input("data-source", "value"),
     )
-    def update_globe(city_data, linear_data, variable_key, data_source):
+    def update_globe(
+        city_data,
+        linear_data,
+        rmse_data,
+        variable_key,
+        data_source,
+    ):
+        if data_source == "rmse" and rmse_data:
+            df = pd.DataFrame(rmse_data)
+
+            df["date"] = pd.to_datetime(df["date"], errors="coerce")
+            df["rmse"] = pd.to_numeric(df["rmse"], errors="coerce")
+            df["lat"] = pd.to_numeric(df["lat"], errors="coerce")
+            df["lng"] = pd.to_numeric(df["lng"], errors="coerce")
+
+            rmse_variable = RMSE_VARIABLE_MAP.get(variable_key, variable_key)
+            df = df[df["variable"] == rmse_variable]
+
+            latest_date = df["date"].max()
+            df = df[df["date"] == latest_date]
+
+            df["valid_time"] = df["date"]
+
+            return create_globe_figure(
+                city_df=df,
+                variable_key="rmse",
+                show_countries=True,
+            )
+
         if data_source == "linear" and linear_data:
             df = pd.DataFrame(linear_data)
         else:
             df = pd.DataFrame(city_data)
+
         for col in (
             "lat",
             "lng",
@@ -289,13 +405,18 @@ def build_app():
         ):
             if col in df.columns:
                 df[col] = pd.to_numeric(df[col], errors="coerce")
+
         for col in ("issue_time", "valid_time"):
             if col in df.columns:
                 df[col] = pd.to_datetime(df[col], errors="coerce")
+
         required_cols = ["lat", "lng"]
+
         if "valid_time" in df.columns:
             required_cols.append("valid_time")
+
         df = df.dropna(subset=required_cols)
+
         return create_globe_figure(
             city_df=df,
             variable_key=variable_key,

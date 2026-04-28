@@ -81,6 +81,16 @@ VARIABLE_CONFIG = {
         "min_span": 4.0,
         "min_value": 0.0,
     },
+    "rmse": {
+        "column": "rmse",
+        "label": "RMSE",
+        "unit": "",
+        "fmt": ".3f",
+        "colorscale": "Reds",
+        "padding": 0.1,
+        "min_span": 1.0,
+        "min_value": 0.0,
+    },
 }
 
 VARIABLE_SWITCH_OPTIONS = [
@@ -156,7 +166,7 @@ def _add_country_borders(fig, border_radius=1.005):
                         y=y,
                         z=z,
                         mode="lines",
-                        line=dict(color="rgba(100, 116, 139, 0.6)", width=1.2),
+                        line=dict(color="black", width=2),
                         hoverinfo="skip",
                         showlegend=False,
                     )
@@ -201,9 +211,11 @@ def _compute_color_limits(surface_values, station_values, config):
         half = min_span / 2.0
         cmin = midpoint - half
         cmax = midpoint + half
+
         if min_value is not None:
             cmin = max(cmin, float(min_value))
             cmax = max(cmax, cmin + min_span)
+
         if max_value is not None:
             cmax = min(cmax, float(max_value))
             cmin = min(cmin, cmax - min_span)
@@ -216,7 +228,8 @@ def _compute_color_limits(surface_values, station_values, config):
 
 def _marker_sizes(values, variable_key):
     sizes = np.full(values.shape, 4.2, dtype=float)
-    if variable_key not in {"wind_speed_10m", "wind_gusts_10m", "precipitation"}:
+
+    if variable_key not in {"wind_speed_10m", "wind_gusts_10m", "precipitation", "rmse"}:
         return sizes
 
     finite = np.isfinite(values)
@@ -241,14 +254,17 @@ def create_globe_figure(
     key = variable_key if variable_key in VARIABLE_CONFIG else DEFAULT_VARIABLE
     config = VARIABLE_CONFIG[key]
     value_col = config["column"]
+
     if value_col not in city_df.columns:
         key = DEFAULT_VARIABLE
         config = VARIABLE_CONFIG[key]
         value_col = config["column"]
 
     plot_df = city_df.copy()
+
     for col in ("lat", "lng", value_col):
         plot_df[col] = pd.to_numeric(plot_df[col], errors="coerce")
+
     plot_df = plot_df.dropna(subset=["lat", "lng", value_col]).reset_index(drop=True)
 
     if plot_df.empty:
@@ -285,11 +301,13 @@ def create_globe_figure(
 
     x_sphere, y_sphere, z_sphere = lat_lon_to_xyz(lat_mesh, lon_mesh, radius=1.0)
     x_atmos, y_atmos, z_atmos = lat_lon_to_xyz(lat_mesh, lon_mesh, radius=1.03)
+
     x_city, y_city, z_city = lat_lon_to_xyz(
         plot_df["lat"].to_numpy(),
         plot_df["lng"].to_numpy(),
         radius=1.02,
     )
+
     station_values = plot_df[value_col].to_numpy(dtype=float)
     cmin, cmax = _compute_color_limits(surface_values, station_values, config)
     unit = _unit_suffix(config["unit"])
@@ -316,7 +334,7 @@ def create_globe_figure(
             cmin=cmin,
             cmax=cmax,
             colorbar=dict(
-                title=f"{config['label']} ({config['unit']})",
+                title=f"{config['label']} ({config['unit']})" if config["unit"] else config["label"],
                 x=0.92,
                 thickness=14,
             ),
@@ -336,19 +354,24 @@ def create_globe_figure(
             lighting=dict(ambient=0.68, diffuse=0.62, specular=0.25, roughness=0.75),
         )
     )
+
     fig.add_trace(
         go.Surface(
             x=x_atmos,
             y=y_atmos,
             z=z_atmos,
             surfacecolor=np.ones_like(surface_values, dtype=float),
-            colorscale=[[0.0, "rgba(125, 211, 252, 0.18)"], [1.0, "rgba(125, 211, 252, 0.18)"]],
+            colorscale=[
+                [0.0, "rgba(125, 211, 252, 0.18)"],
+                [1.0, "rgba(125, 211, 252, 0.18)"],
+            ],
             showscale=False,
             hoverinfo="skip",
             opacity=0.25,
             lighting=dict(ambient=0.95, diffuse=0.25, specular=0.05, roughness=1.0),
         )
     )
+
     fig.add_trace(
         go.Scatter3d(
             x=x_city,
@@ -385,7 +408,11 @@ def create_globe_figure(
     if show_countries:
         fig = _add_country_borders(fig, border_radius=1.005)
 
-    latest_valid_time = pd.to_datetime(plot_df["valid_time"].max(), errors="coerce")
+    if "valid_time" in plot_df.columns:
+        latest_valid_time = pd.to_datetime(plot_df["valid_time"].max(), errors="coerce")
+    else:
+        latest_valid_time = pd.NaT
+
     if pd.isna(latest_valid_time):
         sample_time = "latest update"
     else:
@@ -408,4 +435,5 @@ def create_globe_figure(
         font=dict(color="#e2e8f0"),
         showlegend=False,
     )
+
     return fig

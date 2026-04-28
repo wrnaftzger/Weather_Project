@@ -14,7 +14,6 @@ from sqlalchemy.exc import ProgrammingError as SQLAlchemyProgrammingError
 
 load_dotenv()
 
-
 SERVER = os.getenv("AZURE_SQL_SERVER", "sluweather.database.windows.net")
 DATABASE = os.getenv("AZURE_SQL_DATABASE", "Weather")
 ODBC_DRIVER = os.getenv("AZURE_SQL_ODBC_DRIVER", "ODBC Driver 18 for SQL Server")
@@ -22,16 +21,15 @@ SQL_DIALECT = os.getenv("AZURE_SQL_DIALECT", "auto").strip().lower()
 
 
 def _is_missing_forecast_accuracy_error(exc: Exception) -> bool:
-    message = str(exc)
-    msg_lower = message.lower()
+    message = str(exc).lower()
     return (
-        "forecast_accuracy" in msg_lower
+        "forecast_accuracy" in message
         and (
-            "invalid object name" in msg_lower
-            or "object name" in msg_lower
-            or "programmingerror" in msg_lower
-            or "(208" in msg_lower
-            or "208," in msg_lower
+            "invalid object name" in message
+            or "object name" in message
+            or "programmingerror" in message
+            or "(208" in message
+            or "208," in message
         )
     )
 
@@ -47,6 +45,7 @@ def get_engine():
     password = os.environ["AZURE_SQL_PASSWORD"]
 
     dialect = _resolve_sqlalchemy_dialect()
+
     if dialect == "pyodbc":
         params = urllib.parse.quote_plus(
             f"Driver={{{ODBC_DRIVER}}};"
@@ -54,8 +53,11 @@ def get_engine():
             f"Database={DATABASE};"
             f"UID={user};"
             f"PWD={password};"
-            "Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;"
+            "Encrypt=yes;"
+            "TrustServerCertificate=no;"
+            "Connection Timeout=30;"
         )
+
         return create_engine(
             f"mssql+pyodbc:///?odbc_connect={params}",
             pool_pre_ping=True,
@@ -75,7 +77,10 @@ def get_engine():
     )
 
 
-def fetch_historical_error_training_data(lookback_days: int, sample_limit: int) -> pd.DataFrame:
+def fetch_historical_error_training_data(
+    lookback_days: int,
+    sample_limit: int
+) -> pd.DataFrame:
     query_forecast_accuracy = f"""
     SELECT TOP ({int(sample_limit)})
         fa.city,
@@ -102,6 +107,7 @@ def fetch_historical_error_training_data(lookback_days: int, sample_limit: int) 
       AND fa.forecast_valid_time >= DATEADD(day, -{int(lookback_days)}, GETUTCDATE())
     ORDER BY fa.forecast_valid_time DESC;
     """
+
     query_forecasts_fallback = f"""
     SELECT TOP ({int(sample_limit)})
         f.city,
@@ -127,6 +133,7 @@ def fetch_historical_error_training_data(lookback_days: int, sample_limit: int) 
       AND f.retrieved_at <= f.time
     ORDER BY f.time DESC;
     """
+
     with get_engine().connect() as conn:
         try:
             df = pd.read_sql(query_forecast_accuracy, conn)
@@ -138,13 +145,16 @@ def fetch_historical_error_training_data(lookback_days: int, sample_limit: int) 
         ) as exc:
             if not _is_missing_forecast_accuracy_error(exc):
                 raise
+
             print(
                 "[WARN] Table 'forecast_accuracy' not found. "
                 "Falling back to training from 'forecasts' + 'historical_weather'."
             )
             df = pd.read_sql(query_forecasts_fallback, conn)
+
     if df.empty:
         raise RuntimeError("No historical forecast/actual pairs found for model training.")
+
     return df
 
 
@@ -195,18 +205,17 @@ def fetch_latest_station_forecasts() -> pd.DataFrame:
     WHERE rn = 1
     ORDER BY city;
     """
+
     with get_engine().connect() as conn:
         df = pd.read_sql(query, conn)
+
     if df.empty:
         raise RuntimeError("No forecast station data returned from database.")
+
     return df
 
 
 def fetch_linear_model_predictions(lead_days: int) -> pd.DataFrame:
-    """Fetch predictions from the R linear model for the specified lead_days.
-
-    Reads from the database table linear_model_predictions.
-    """
     query = f"""
     SELECT
         city,
@@ -243,15 +252,50 @@ def fetch_linear_model_predictions(lead_days: int) -> pd.DataFrame:
             "Run predict_weather.R to generate predictions."
         )
 
-    # Rename columns to match what globe_plotting expects
-    df = df.rename(columns={
-        "predicted_temp": "corrected_temp",
-        "pred_temp_full": "forecast_temp",
-        "pred_temp_adj": "predicted_error",
-    })
+    df = df.rename(
+        columns={
+            "predicted_temp": "corrected_temp",
+            "pred_temp_full": "forecast_temp",
+            "pred_temp_adj": "predicted_error",
+        }
+    )
 
-    # Add required columns that globe_plotting expects
     df["valid_time"] = pd.to_datetime(df.get("valid_date", ""), errors="coerce")
     df["issue_time"] = pd.to_datetime(df.get("created_at", ""), errors="coerce")
 
     return df
+
+
+def fetch_daily_rmse_by_variable() -> pd.DataFrame:
+    query = """
+    SELECT
+        r.date,
+        r.city,
+        r.variable,
+        r.rmse,
+        r.n_obs,
+        c.lat,
+        c.lng,
+        c.country
+    FROM vw_daily_rmse_by_variable r
+    LEFT JOIN cities c
+        ON c.city_ascii = r.city
+    WHERE c.lat IS NOT NULL
+      AND c.lng IS NOT NULL
+      AND r.rmse IS NOT NULL
+    ORDER BY r.date, r.city, r.variable;
+    """
+
+    with get_engine().connect() as conn:
+        df = pd.read_sql(query, conn)
+
+    if df.empty:
+        raise RuntimeError("No daily RMSE data returned from vw_daily_rmse_by_variable.")
+
+    df["date"] = pd.to_datetime(df["date"], errors="coerce")
+    df["rmse"] = pd.to_numeric(df["rmse"], errors="coerce")
+    df["n_obs"] = pd.to_numeric(df["n_obs"], errors="coerce")
+    df["lat"] = pd.to_numeric(df["lat"], errors="coerce")
+    df["lng"] = pd.to_numeric(df["lng"], errors="coerce")
+
+    return df.dropna(subset=["date", "variable", "rmse", "lat", "lng"])
