@@ -213,6 +213,38 @@ body {
   text-align: center;
 }
 
+.city-detail-box {
+  background: rgba(30, 41, 59, 0.8);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  border-radius: 8px;
+  padding: 12px;
+  margin: 8px;
+}
+
+.city-detail-name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #f1f5f9;
+  margin-bottom: 8px;
+}
+
+.city-detail-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+}
+
+.city-detail-label {
+  color: #94a3b8;
+  font-size: 0.85rem;
+}
+
+.city-detail-value {
+  color: #38bdf8;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
 .city-list-more {
   padding: 8px;
   color: #64748b;

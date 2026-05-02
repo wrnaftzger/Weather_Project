@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import platform
+import time
 import urllib.parse
 
 import pandas as pd
@@ -13,6 +14,116 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.exc import ProgrammingError as SQLAlchemyProgrammingError
 
 load_dotenv()
+
+CACHE_TTL_SECONDS = 300
+_station_forecast_cache = {"data": None, "time": 0}
+
+
+def fetch_station_forecasts_with_r_predictions() -> pd.DataFrame:
+    """Fetch current weather forecasts joined with R model predictions.
+    
+    Returns DataFrame with:
+    - Original forecast values
+    - R model predictions (r_predicted_temp)
+    - Bias correction (r_predicted_temp - forecast_temp)
+    - Both original and corrected values for display
+    """
+    query = """
+    WITH ranked AS (
+        SELECT
+            f.city,
+            f.retrieved_at AS issue_time,
+            f.time AS valid_time,
+            CAST(DATEDIFF(minute, f.retrieved_at, f.time) AS FLOAT) / 60.0 AS lead_time_hours,
+            f.temperature_2m AS forecast_temp,
+            f.apparent_temperature,
+            f.relative_humidity_2m,
+            f.precipitation,
+            f.wind_speed_10m,
+            f.wind_gusts_10m,
+            c.lat,
+            c.lng,
+            c.country,
+            ROW_NUMBER() OVER (
+                PARTITION BY f.city
+                ORDER BY ABS(DATEDIFF(minute, f.time, GETUTCDATE())), f.retrieved_at DESC
+            ) AS rn
+        FROM forecasts f
+        JOIN cities c
+            ON c.city_ascii = f.city
+        WHERE f.temperature_2m IS NOT NULL
+          AND c.lat IS NOT NULL
+          AND c.lng IS NOT NULL
+          AND f.retrieved_at >= DATEADD(day, -14, GETUTCDATE())
+    ),
+    r_preds AS (
+        SELECT 
+            city,
+            predicted_temp AS r_predicted_temp,
+            lead_days
+        FROM dbo.linear_model_predictions
+        WHERE lead_days = 1
+    )
+    SELECT
+        r.city,
+        r.issue_time,
+        r.valid_time,
+        r.lead_time_hours,
+        r.forecast_temp,
+        r.apparent_temperature,
+        r.relative_humidity_2m,
+        r.precipitation,
+        r.wind_speed_10m,
+        r.wind_gusts_10m,
+        r.lat,
+        r.lng,
+        r.country,
+        rp.r_predicted_temp,
+        CASE WHEN rp.r_predicted_temp IS NOT NULL 
+             THEN rp.r_predicted_temp - r.forecast_temp 
+             ELSE NULL END AS r_bias
+    FROM ranked r
+    LEFT JOIN r_preds rp ON LOWER(rp.city) = LOWER(r.city)
+    WHERE r.rn = 1
+    ORDER BY r.city;
+    """
+    
+    global _station_forecast_cache
+    
+    current_time = time.time()
+    if _station_forecast_cache["data"] is not None:
+        if current_time - _station_forecast_cache["time"] < CACHE_TTL_SECONDS:
+            return _station_forecast_cache["data"]
+    
+    with get_engine().connect() as conn:
+        df = pd.read_sql(query, conn)
+    
+    if df.empty:
+        raise RuntimeError("No forecast station data returned from database.")
+    
+    # Compute R-corrected temperature
+    df["r_corrected_temp"] = df.apply(
+        lambda row: row["r_predicted_temp"] if pd.notna(row["r_predicted_temp"]) else None,
+        axis=1
+    )
+    
+    # For display: show both original and corrected
+    df["display_temp"] = df.apply(
+        lambda row: f"{row['forecast_temp']:.1f}" if pd.notna(row["forecast_temp"]) else "N/A",
+        axis=1
+    )
+    df["display_corrected"] = df.apply(
+        lambda row: f"{row['r_predicted_temp']:.1f}" if pd.notna(row["r_predicted_temp"]) else "N/A",
+        axis=1
+    )
+    df["display_bias"] = df.apply(
+        lambda row: f"{row['r_bias']:+.1f}" if pd.notna(row["r_bias"]) else "N/A",
+        axis=1
+    )
+    
+    _station_forecast_cache = {"data": df, "time": current_time}
+    return df
+
 
 SERVER = os.getenv("AZURE_SQL_SERVER", "sluweather.database.windows.net")
 DATABASE = os.getenv("AZURE_SQL_DATABASE", "Weather")
@@ -205,13 +316,20 @@ def fetch_latest_station_forecasts() -> pd.DataFrame:
     WHERE rn = 1
     ORDER BY city;
     """
-
+    global _station_forecast_cache
+    
+    current_time = time.time()
+    if _station_forecast_cache["data"] is not None:
+        if current_time - _station_forecast_cache["time"] < CACHE_TTL_SECONDS:
+            return _station_forecast_cache["data"]
+    
     with get_engine().connect() as conn:
         df = pd.read_sql(query, conn)
-
+    
     if df.empty:
         raise RuntimeError("No forecast station data returned from database.")
-
+    
+    _station_forecast_cache = {"data": df, "time": current_time}
     return df
 
 
@@ -264,6 +382,65 @@ def fetch_linear_model_predictions(lead_days: int) -> pd.DataFrame:
     df["issue_time"] = pd.to_datetime(df.get("created_at", ""), errors="coerce")
 
     return df
+
+
+def fetch_all_linear_model_predictions() -> dict:
+    """Fetch all R Linear Model predictions (1-7 days) in one query.
+    
+    Returns dict with lead_days as keys and DataFrames as values.
+    Cached for 5 minutes.
+    """
+    import time
+    
+    current_time = time.time()
+    
+    if hasattr(fetch_all_linear_model_predictions, "_cache"):
+        cache_data, cache_time = fetch_all_linear_model_predictions._cache
+        if current_time - cache_time < 300:
+            return cache_data
+    
+    query = """
+    SELECT
+        city,
+        country,
+        lat,
+        lng,
+        predicted_temp,
+        pred_temp_full,
+        pred_temp_adj,
+        valid_date,
+        lead_days,
+        created_at
+    FROM dbo.linear_model_predictions
+    ORDER BY lead_days, city;
+    """
+
+    try:
+        with get_engine().connect() as conn:
+            df = pd.read_sql(query, conn)
+    except (
+        SQLAlchemyProgrammingError,
+        SQLAlchemyDBAPIError,
+        SQLAlchemyError,
+        pd.errors.DatabaseError,
+    ):
+        return {}
+
+    result = {}
+    for day in range(1, 8):
+        day_df = df[df["lead_days"] == day].copy()
+        if not day_df.empty:
+            day_df = day_df.rename(columns={
+                "predicted_temp": "corrected_temp",
+                "pred_temp_full": "forecast_temp",
+                "pred_temp_adj": "predicted_error",
+            })
+            day_df["valid_time"] = pd.to_datetime(day_df.get("valid_date", ""), errors="coerce")
+            day_df["issue_time"] = pd.to_datetime(day_df.get("created_at", ""), errors="coerce")
+            result[day] = day_df.reset_index(drop=True)
+
+    fetch_all_linear_model_predictions._cache = (result, current_time)
+    return result
 
 
 def fetch_daily_rmse_by_variable() -> pd.DataFrame:
